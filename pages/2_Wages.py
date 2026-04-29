@@ -14,6 +14,40 @@ df = load_data()
 st.markdown("<h1 style='text-align: center;'>Gender Wage Gap</h1>", unsafe_allow_html=True)
 st.divider()
 
+# ── Key Statistics ────────────────────────────────────────────
+st.markdown("### Key Findings")
+
+# Global average wage gap
+global_gap = df[
+    (df["INDICATOR"] == "Gender Wage Gap by Occupation, Rate") &
+    (df["GS_LI_OCC"] == "Total (By ICSO 08 Classification)")
+]["VALUE"].mean()
+
+# Latest year gap (2022)
+latest_gap = df[
+    (df["INDICATOR"] == "Gender Wage Gap by Occupation, Rate") &
+    (df["GS_LI_OCC"] == "Total (By ICSO 08 Classification)") &
+    (df["YEAR"] == 2022)
+]["VALUE"].mean()
+
+# Private sector wage ratio
+private_ratio = df[
+    df["INDICATOR"] == "Female To Male Wage Ratio, Private Sector, Mean"
+]["VALUE"].mean()
+
+# Public sector wage ratio
+public_ratio = df[
+    df["INDICATOR"] == "Female To Male Wage Ratio, Public Sector, Mean"
+]["VALUE"].mean()
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Avg Gender Wage Gap", f"{global_gap:.1f}%")
+col2.metric("Latest Gap (2022)", f"{latest_gap:.1f}%")
+col3.metric("Private Sector Ratio", f"{private_ratio:.2f}")
+col4.metric("Public Sector Ratio", f"{public_ratio:.2f}")
+
+st.divider()
+
 selected_region = "All Regions"
 
 base = df[

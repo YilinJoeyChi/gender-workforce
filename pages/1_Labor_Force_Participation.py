@@ -83,10 +83,36 @@ st.markdown(
     "<h1 style='text-align: center;'>Labor Force Participation</h1>",
     unsafe_allow_html=True
 )
+
+# ── Key Statistics ────────────────────────────────────────────
+st.markdown("### Key Findings")
+
+# Calculate stats
+global_female = lfp_ext[lfp_ext["GENDER"] == "Female"]["VALUE"].mean()
+global_male = lfp_ext[lfp_ext["GENDER"] == "Male"]["VALUE"].mean()
+global_gap = global_male - global_female
+
+# Largest gap region
+region_gap = df[
+    (df["INDICATOR"] == "Labor Force Participation, Modeled ILO Estimate, Rate") &
+    (df["AGE_GROUP"] == "15+ yrs") &
+    (df["GS_MS"] == "Not Applicable") &
+    (df["GENDER"].isin(["Female", "Male"]))
+].groupby(["REGION", "GENDER"])["VALUE"].mean().unstack()
+region_gap["gap"] = region_gap["Male"] - region_gap["Female"]
+largest_gap_region = region_gap["gap"].idxmax()
+largest_gap_val = region_gap["gap"].max()
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Global Female LFP Rate", f"{global_female:.1f}%")
+col2.metric("Global Male LFP Rate", f"{global_male:.1f}%")
+col3.metric("Global Gender Gap", f"{global_gap:.1f} pts")
+col4.metric("Largest Gap Region", largest_gap_region, f"{largest_gap_val:.1f} pts")
+
 st.divider()
 
 # ── Tabs ──────────────────────────────────────────────────────
-tab1, tab2 = st.tabs(["Gender Trends", "World Map"])
+tab1, tab2, tab3 = st.tabs(["Gender Trends", "World Map", "Animated Map"])
 
 with tab1:
     with st.container(border=True):
@@ -257,3 +283,69 @@ with tab2:
     st.caption("Gap = |Female − Male| participation rate | Average 2000–2022 | Grey = no data")
 
 
+with tab3:
+    st.subheader("Female Labor Force Participation Rate — Animated Map")
+
+    with st.container(border=True):
+        anim_gender = st.radio("Gender", ["Female", "Male"], horizontal=True, key="anim_gender")
+
+    anim_map_data = df[
+        (df["INDICATOR"] == "Labor Force Participation, Modeled ILO Estimate, Rate") &
+        (df["AGE_GROUP"] == "15+ yrs") &
+        (df["GS_MS"] == "Not Applicable") &
+        (df["GENDER"] == anim_gender)
+    ].copy()
+    anim_map_data["code"] = anim_map_data["COUNTRY"].apply(iso3)
+    anim_map_data = anim_map_data.dropna(subset=["code", "VALUE"])
+    anim_map_data = anim_map_data.sort_values("YEAR")
+
+    fig_anim_lfp = px.choropleth(
+        anim_map_data,
+        locations="code",
+        color="VALUE",
+        hover_name="COUNTRY",
+        animation_frame="YEAR",
+        color_continuous_scale=[
+            [0.0, "#ffffff"],
+            [0.25, "#e8efff"],
+            [0.5, "#ffc6c6"],
+            [0.75, "#e34242"],
+            [1.0, "#3d0000"]
+        ],
+        range_color=[0, 100],
+        labels={"VALUE": "LFP Rate (%)"},
+        hover_data={"code": False, "VALUE": ":.1f"}
+    )
+
+    fig_anim_lfp.update_layout(
+        height=600, dragmode=False,
+        geo=dict(
+            showframe=False, showcoastlines=False,
+            showland=True, landcolor="#d9d9d9",
+            showocean=True, oceancolor="#ddeeff",
+            projection_type="equirectangular",
+            showcountries=True, countrycolor="white"
+        ),
+        coloraxis_colorbar=dict(
+            title="LFP Rate (%)",
+            orientation="h",
+            x=0.5, xanchor="center",
+            y=-0.08, yanchor="top",
+            len=0.5, thickness=15,
+            tickvals=[0, 20, 40, 60, 80, 100],
+            ticktext=["0%", "20%", "40%", "60%", "80%", "100%"],
+            tickmode="array"
+        ),
+        paper_bgcolor="white",
+        font=dict(family="Arial", size=13),
+        margin=dict(t=20, b=80, l=0, r=0)
+    )
+
+    try:
+        fig_anim_lfp.layout.updatemenus[0].buttons[0].args[1]["frame"]["duration"] = 800
+        fig_anim_lfp.layout.updatemenus[0].buttons[0].args[1]["transition"]["duration"] = 400
+    except IndexError:
+        pass
+
+    st.plotly_chart(fig_anim_lfp, use_container_width=True)
+    st.caption("Grey = no data | Source: IMF Gender Statistics | Age group: 15+")
