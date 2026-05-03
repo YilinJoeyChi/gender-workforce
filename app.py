@@ -826,9 +826,6 @@ app.layout = html.Div(
                     html.Li("Russia & Caucasus and South Asia have too few data points to make a reliable conclusion."),
                 ], style={"color": TEXT, "fontSize": "0.9em", "lineHeight": "1.8"}),
             ], style={"backgroundColor": CARD_BG, "padding": "16px 24px", "borderRadius": "8px", "marginTop": "16px", "marginBottom": "24px"}),
-
-            html.P("Source: IMF Gender Statistics",
-                   style={"textAlign": "center", "fontSize": "0.85em", "opacity": "0.6"}),
         ]),
 
         html.Div(id="informal", style={"display": "none"}),
