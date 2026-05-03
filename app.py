@@ -1774,6 +1774,85 @@ def update_inf_scatter(scatter_gender, inf_year):
     Output("cross-quadrant", "figure"),
     Input("cross-heatmap", "id")
 )
+def update_cross(_):
+    corr = combined_data[["LFP", "Unemployment", "Wage Gap", "Part-Time", "Informal"]].corr()
+
+    fig_heat = px.imshow(
+        corr.round(2),
+        text_auto=True,
+        color_continuous_scale=[COLOR_FEMALE, "#ffffff", COLOR_MALE],
+        zmin=-1, zmax=1,
+        aspect="auto"
+    )
+    fig_heat.update_layout(
+        height=450,
+        paper_bgcolor=BG, plot_bgcolor=BG,
+        font=dict(family="Playfair Display, serif", size=13, color=TEXT),
+        margin=dict(t=30)
+    )
+
+    lfp_2022 = df[
+        (df["INDICATOR"] == "Labor Force Participation, Modeled ILO Estimate, Rate") &
+        (df["AGE_GROUP"] == "15+ yrs") &
+        (df["GS_MS"] == "Not Applicable") &
+        (df["GENDER"] == "Female") &
+        (df["YEAR"] == 2022)
+    ][["COUNTRY", "REGION", "VALUE"]].rename(columns={"VALUE": "LFP"})
+
+    wage_2022 = df[
+        (df["INDICATOR"] == "Gender Wage Gap by Occupation, Rate") &
+        (df["GS_LI_OCC"] == "Total (By ICSO 08 Classification)") &
+        (df["YEAR"] == 2022)
+    ][["COUNTRY", "VALUE"]].rename(columns={"VALUE": "Wage Gap"})
+
+    quad_data = lfp_2022.merge(wage_2022, on="COUNTRY").dropna()
+    lfp_mid = quad_data["LFP"].median()
+    wage_mid = quad_data["Wage Gap"].median()
+
+    def quadrant(row):
+        if row["LFP"] >= lfp_mid and row["Wage Gap"] <= wage_mid:
+            return "High LFP + Low Wage Gap"
+        elif row["LFP"] >= lfp_mid and row["Wage Gap"] > wage_mid:
+            return "High LFP + High Wage Gap"
+        elif row["LFP"] < lfp_mid and row["Wage Gap"] <= wage_mid:
+            return "Low LFP + Low Wage Gap"
+        else:
+            return "Low LFP + High Wage Gap"
+
+    quad_data["Quadrant"] = quad_data.apply(quadrant, axis=1)
+    quad_colors = {
+        "High LFP + Low Wage Gap": "#8faf8f",
+        "High LFP + High Wage Gap": "#fed9a6",
+        "Low LFP + Low Wage Gap": "#b3cde3",
+        "Low LFP + High Wage Gap": COLOR_FEMALE,
+    }
+
+    fig_quad = px.scatter(
+        quad_data, x="LFP", y="Wage Gap",
+        color="Quadrant", hover_name="COUNTRY",
+        color_discrete_map=quad_colors,
+        labels={"LFP": "Female LFP Rate (%)", "Wage Gap": "Gender Wage Gap (%)"}
+    )
+    fig_quad.add_vline(x=lfp_mid, line_dash="dash", line_color=TEXT, opacity=0.4)
+    fig_quad.add_hline(y=wage_mid, line_dash="dash", line_color=TEXT, opacity=0.4)
+    fig_quad.add_annotation(x=quad_data["LFP"].max(), y=quad_data["Wage Gap"].max(), text="High LFP + High Wage Gap", showarrow=False, font=dict(size=10, color=TEXT), opacity=0.5)
+    fig_quad.add_annotation(x=quad_data["LFP"].min(), y=quad_data["Wage Gap"].max(), text="Low LFP + High Wage Gap", showarrow=False, font=dict(size=10, color=TEXT), opacity=0.5)
+    fig_quad.add_annotation(x=quad_data["LFP"].max(), y=quad_data["Wage Gap"].min(), text="High LFP + Low Wage Gap", showarrow=False, font=dict(size=10, color=TEXT), opacity=0.5)
+    fig_quad.add_annotation(x=quad_data["LFP"].min(), y=quad_data["Wage Gap"].min(), text="Low LFP + Low Wage Gap", showarrow=False, font=dict(size=10, color=TEXT), opacity=0.5)
+    fig_quad.update_traces(marker=dict(size=9, opacity=0.8))
+    fig_quad.update_layout(
+        height=550, plot_bgcolor=BG, paper_bgcolor=BG,
+        font=dict(family="Playfair Display, serif", size=13, color=TEXT),
+        xaxis=dict(title="Female LFP Rate (%)", gridcolor="#eeeeee"),
+        yaxis=dict(title="Gender Wage Gap (%)", gridcolor="#eeeeee"),
+        legend=dict(title="Quadrant"), margin=dict(t=30)
+    )
+    return fig_heat, fig_quad
+
+# ============================================================
+# CALLBACK: INTERACTIVE SCATTER PLOT
+# ============================================================
+
 @app.callback(
     Output("cross-scatter", "figure"),
     Output("scatter-corr", "children"),
@@ -1794,108 +1873,20 @@ def update_cross_scatter(x_axis, y_axis, trendline):
     }
 
     fig = px.scatter(
-        scatter_data,
-        x=x_axis, y=y_axis,
-        color="REGION",
-        hover_name="COUNTRY",
+        scatter_data, x=x_axis, y=y_axis,
+        color="REGION", hover_name="COUNTRY",
         trendline="ols" if trendline == "Show" else None,
         color_discrete_map=REGION_COLORS,
         labels={x_axis: x_axis, y_axis: y_axis}
     )
-
     fig.update_traces(marker=dict(size=9, opacity=0.8))
     fig.update_layout(
-        height=550,
-        plot_bgcolor=BG, paper_bgcolor=BG,
+        height=550, plot_bgcolor=BG, paper_bgcolor=BG,
         font=dict(family="Playfair Display, serif", size=13, color=TEXT),
         xaxis=dict(title=x_axis, gridcolor="#eeeeee"),
         yaxis=dict(title=y_axis, gridcolor="#eeeeee"),
-        legend=dict(title="Region"),
-        margin=dict(t=30)
+        legend=dict(title="Region"), margin=dict(t=30)
     )
-
-    corr_text = f"Pearson Correlation: {corr_val:.2f}"
-    return fig, corr_text
-
-# ============================================================
-# CALLBACK: INTERACTIVE SCATTER PLOT
-# ============================================================
-
-@app.callback(
-    Output("cross-scatter", "figure"),
-    Output("scatter-corr", "children"),
-    Input("scatter-x", "value"),
-    Input("scatter-y", "value"),
-    Input("scatter-trendline", "value")
-)
-def update_cross_scatter(x_axis, y_axis, trendline):
-    lfp = df[
-        (df["INDICATOR"] == "Labor Force Participation, Modeled ILO Estimate, Rate") &
-        (df["AGE_GROUP"] == "15+ yrs") &
-        (df["GS_MS"] == "Not Applicable") &
-        (df["GENDER"] == "Female")
-    ].groupby("COUNTRY")["VALUE"].mean().rename("LFP")
-
-    unemp = df[
-        (df["INDICATOR"] == "Unemployment Rate , Rate") &
-        (df["AGE_GROUP"] == "Not Applicable") &
-        (df["GS_MS"] == "Total") &
-        (df["GENDER"] == "Female")
-    ].groupby("COUNTRY")["VALUE"].mean().rename("Unemployment")
-
-    wage = df[
-        (df["INDICATOR"] == "Gender Wage Gap by Occupation, Rate") &
-        (df["GS_LI_OCC"] == "Total (By ICSO 08 Classification)")
-    ].groupby("COUNTRY")["VALUE"].mean().rename("Wage Gap")
-
-    parttime = df[
-        (df["INDICATOR"] == "Part-Time Employment, Percent of total employment") &
-        (df["GENDER"] == "Female")
-    ].groupby("COUNTRY")["VALUE"].mean().rename("Part-Time")
-
-    informal = df[
-        (df["INDICATOR"] == "Informal Employment by Economic Activity") &
-        (df["GS_LI_EA"] == "Total Agriculture and Non-agriculture") &
-        (df["GENDER"] == "Female")
-    ].groupby("COUNTRY")["VALUE"].mean().rename("Informal")
-
-    region = df[["COUNTRY", "REGION"]].drop_duplicates()
-    combined = pd.concat([lfp, unemp, wage, parttime, informal], axis=1).reset_index()
-    combined = combined.merge(region, on="COUNTRY", how="left")
-
-    scatter_data = combined.dropna(subset=[x_axis, y_axis])
-    corr_val = scatter_data[x_axis].corr(scatter_data[y_axis])
-
-    REGION_COLORS = {
-        r: c for r, c in zip(
-            sorted(scatter_data["REGION"].dropna().unique()),
-            ["#fbb4ae", "#b3cde3", "#ccebc5", "#decbe4",
-             "#fed9a6", "#ffffcc", "#e5d8bd", "#fddaec", "#f2f2f2"]
-        )
-    }
-
-    fig = px.scatter(
-        scatter_data,
-        x=x_axis,
-        y=y_axis,
-        color="REGION",
-        hover_name="COUNTRY",
-        trendline="ols" if trendline == "Show" else None,
-        color_discrete_map=REGION_COLORS,
-        labels={x_axis: x_axis, y_axis: y_axis}
-    )
-
-    fig.update_traces(marker=dict(size=9, opacity=0.8))
-    fig.update_layout(
-        height=550,
-        plot_bgcolor=BG, paper_bgcolor=BG,
-        font=dict(family="Playfair Display, serif", size=13, color=TEXT),
-        xaxis=dict(title=x_axis, gridcolor="#eeeeee"),
-        yaxis=dict(title=y_axis, gridcolor="#eeeeee"),
-        legend=dict(title="Region"),
-        margin=dict(t=30)
-    )
-
     corr_text = f"Pearson Correlation: {corr_val:.2f}"
     return fig, corr_text
 
