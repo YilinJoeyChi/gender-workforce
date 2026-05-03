@@ -799,10 +799,6 @@ app.layout = html.Div(
             html.Hr(style={"borderColor": PRIMARY, "opacity": "0.2"}),
 
             # Scatter Plot
-
-            html.Hr(style={"borderColor": PRIMARY, "opacity": "0.2"}),
-
-            # Scatter Plot
             html.H3("Informal vs Part-Time Employment by Country", style={"textAlign": "center", "color": PRIMARY, "fontSize": "20px", "marginTop": "40px"}),
             html.P("Does high informal employment correlate with high part-time work?",
                    style={"textAlign": "center", "opacity": "0.6", "fontSize": "0.85em"}),
