@@ -19,7 +19,7 @@ app = dash.Dash(__name__, external_stylesheets=[
     dbc.themes.BOOTSTRAP,
     "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&display=swap"
 ])
-
+server = app.server
 
 # ============================================================
 # LOAD DATA

@@ -1,6 +1,6 @@
-streamlit
-pandas
+dash
+dash-bootstrap-components
 plotly
+pandas
 pycountry
-numpy
-scikit-learn
+gunicorn
