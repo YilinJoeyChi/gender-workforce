@@ -2,11 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-st.set_page_config(
-    page_title="Visualizing Global Patterns in the Global Workforce",
-    layout="wide"
-)
-
 @st.cache_data
 def load_data():
     df = pd.read_csv("gender_clean.csv")
